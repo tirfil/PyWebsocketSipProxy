@@ -73,6 +73,12 @@ class wsserver:
         self._result = ""
         self._status=0
         return result
+        
+    def isIncomplete(self):
+        if len(self.extra) > 0:
+            return True
+        else:
+            return False
             
     def processData(self,buffer):
         print "processData"
@@ -115,6 +121,8 @@ class wsserver:
             offset = offset+4
             imask = 0
         last = offset+length
+        
+        print "frame size: %s, packet size: %s" % (last,blen) 
         if last > blen:
             # packet too small
             self.extra=buffer
