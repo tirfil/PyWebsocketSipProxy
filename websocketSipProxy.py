@@ -511,7 +511,7 @@ if __name__ == "__main__":
     server_thread.daemon = True
     server_thread.start()
     #signal.signal(signal.SIGINT, controlc)
-    #server.serve_forever()
+    server.serve_forever()
     #signal.pause()
-    while True:
-        pass
+    #while True:
+    #    pass
