@@ -47,6 +47,16 @@ guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 hsResponse = [ "HTTP/1.1 101 Switching Protocols","Upgrade: websocket", "Connection: Upgrade"]
 hsWrongResponse = ["HTTP/1.1 400 Bad Request"]
 
+def hexdump( chars, sep, width ):
+    while chars:
+        line = chars[:width]
+        chars = chars[width:]
+        line = line.ljust( width, '\000' )
+        print("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
+def quotechars( chars ):
+    return ''.join( ['.', c][c.isalnum()] for c in chars )
+
+
 # readyState
 #CONNECTING = 0
 #OPEN = 1
@@ -110,6 +120,13 @@ class wsserver:
             final = False
         opcode = frame[0] & 0x0f
         print "Opcode 0x%02x" % opcode
+       
+        if not opcode in [0x0,0x1,0x2,0x8,0x9,0xa]:
+            print "frame error:"
+            hexadump(buffer,' ',16)
+            self._status=0
+            return
+            
         if opcode > 0x7:
             control = True
         else:
@@ -145,13 +162,13 @@ class wsserver:
             return
 
         result = ""
-        for index in range(offset,last):
-            (byte,) = struct.unpack("B",buffer[index])
-            if maskb:
+        if maskb:
+            for index in range(offset,last):
+                (byte,) = struct.unpack("B",buffer[index])
                 result += str(unichr(int(byte ^ masks[imask])).encode('utf-8'))
                 imask = (imask + 1) % 4
-            else:
-                result += str(byte)
+        else:
+            result += buffer[offset:last]
         if control:
             # close
             if opcode == 0x8:
@@ -180,6 +197,8 @@ class wsserver:
             self.extra=buffer[last+1:]
                 
     def sendData(self,buffer,opcode=0x01,final=True,mask=False):
+        if mask:
+            buffer = buffer.decode('utf8')
         size = len(buffer)
         if final:
             b0=0x80
@@ -188,20 +207,33 @@ class wsserver:
         b0 += opcode
         if size < 126:
             b1 = size
+            if mask:
+                b1 |= 0x80
             result = struct.pack(">BB",b0,b1)
         elif size < 65536:
             b1 = 126
+            if mask:
+                b1 |= 0x80
             result = struct.pack(">BBH",b0,b1,size)
         else:
             b1 = 127
+            if mask:
+                b1 |= 0x80
             result = struct.pack(">BBQ",b0,b1,size)
         if mask:
-            b1 += 0x80
             masks=[]
             for i in range(4):
-                masks.append(random.uniform(0,255))
+                code = int(random.uniform(0,255))
+                print "Mask%d 0x%02x" % (i,code)
+                masks.append(code)
             result += struct.pack("BBBB",masks[0],masks[1],masks[2],masks[3])
-        result += buffer
+            imask = 0
+            for index in range(size):
+                ascii = ord(buffer[index]) ^ masks[imask]
+                result += struct.pack("B",ascii)
+                imask = (imask + 1) % 4
+        else:
+            result += buffer
         self._result=result
         self._status=3
         

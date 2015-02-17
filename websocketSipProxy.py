@@ -499,8 +499,9 @@ if __name__ == "__main__":
     hostname = socket.gethostname()
     logging.info(hostname)
     ipaddress = socket.gethostbyname(hostname)
-    if ipaddress == "127.0.0.1":
+    if len(sys.argv) > 1:
         ipaddress = sys.argv[1]
+    print ipaddress
     logging.info(ipaddress)
     recordroute = "Record-Route: <sip:%s:%d;transport=ws;lr>" % (ipaddress,PORT)
     topvia = "Via: SIP/2.0/WS %s:%d" % (ipaddress,PORT)
